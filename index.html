@@ -1103,7 +1103,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--i
 // ══════════════════════════════════════════════
 
 // ⚙️ URL del GAS desplegado como API — pega la URL aquí cuando la tengas
-const GAS_API_URL = 'https://script.google.com/a/macros/salesianos.org/s/AKfycbyqjxVEUIRDX5Ha0Gs88vTkaJVYUjFs3ZsZlavv5Sjp2SvwPg9VcD8ftdw9hjcaM-NT/exec';
+const GAS_API_URL = 'PEGA_AQUI_LA_URL_DE_TU_GAS';
 
 let _saving = false;
 let _pendingSave = false;
@@ -2859,10 +2859,12 @@ function fmtEur(n) {
   return new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
 }
 
-// ── INICIO: cargar desde localStorage inmediatamente, luego sincronizar Drive
+// ── INICIO: cargar desde localStorage, solo datos iniciales si es la primera vez
 db = dbLoad();
-if (!db.cursos || !db.cursos.length) {
-  // Primera vez: estructura inicial
+const _esPrimeraVez = !db.cursos || !db.cursos.length;
+
+if (_esPrimeraVez) {
+  // Primera vez: cargar estructura + datos reales del proyecto
   db = {
     version:'1.0', centro:'Salesianos Huesca',
     cursoActivo:'c_2025_2026',
@@ -2882,13 +2884,8 @@ if (!db.cursos || !db.cursos.length) {
       ], nextId:10
     }]
   };
-}
-
-syncStateFromCurso();
-
-// Si no hay movilidades aún, cargar los datos reales del proyecto
-const _cursoAct = getCursoActivo();
-if (_cursoAct && (!_cursoAct.movilidades || _cursoAct.movilidades.length === 0)) {
+  syncStateFromCurso();
+  // Cargar movilidades y participantes reales solo la primera vez
   MOVILIDADES_REALES.forEach(m => {
     const tasks = JSON.parse(JSON.stringify(TASKS_LARGA)).map(t => ({...t, done:false, date:''}));
     state.movilidades.push({...m, tasks});
@@ -2896,10 +2893,14 @@ if (_cursoAct && (!_cursoAct.movilidades || _cursoAct.movilidades.length === 0))
   state.nextId = 10;
   PARTICIPANTES_REALES.forEach(p => state.participantes.push(p));
   syncCursoFromState();
+  dbSave(); // Guardar en localStorage desde el principio
+} else {
+  // Datos existentes — cargar sin tocar nada
+  syncStateFromCurso();
 }
 
-// Cargar selData
-PARTICIPANTES_REALES.forEach(p => {
+// Cargar selData desde los participantes guardados (no desde PARTICIPANTES_REALES)
+state.participantes.forEach(p => {
   selData.push({
     id: selNid++, nombre: p.nombre.split(' ')[0],
     apellidos: p.nombre.split(' ').slice(1).join(' '),
